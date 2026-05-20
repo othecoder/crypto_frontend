@@ -1,7 +1,7 @@
 import type { AssetDetail, HealthPayload, PaginatedAssets, SourceStatus, WatchlistItem } from "./types";
 
 export function apiBaseUrl() {
-  return (process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000/api").replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000/api").replace(/\/$/, "");
 }
 
 export async function fetchJson<T>(path: string, fallback: T): Promise<T> {
