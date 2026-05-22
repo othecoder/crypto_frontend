@@ -2,6 +2,7 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { apiBaseUrl } from "../lib/api";
 import { money } from "../lib/format";
 import type { AssetListItem, WatchlistItem } from "../lib/types";
@@ -13,6 +14,8 @@ export function WatchlistClient() {
   const [assets, setAssets] = useState<AssetListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const preselectedAssetId = searchParams.get("asset");
 
   useEffect(() => {
     void load();
@@ -31,7 +34,7 @@ export function WatchlistClient() {
       setItems(watchlistJson.data || []);
       setAssets(assetsJson.data || []);
     } catch {
-      setError("API erişilemedi. Backend çalışıyorsa NEXT_PUBLIC_API_BASE_URL değerini kontrol et.");
+      setError("API erişilemedi. Backend çalışıyorsa NEXT_PUBLIC_API_URL değerini kontrol et.");
     } finally {
       setLoading(false);
     }
@@ -79,7 +82,7 @@ export function WatchlistClient() {
         <p className="mt-2 text-sm text-slate-400">İlk MVP global takip listesi kullanır; auth yoktur.</p>
         <label className="mt-5 block">
           <span className="text-xs text-slate-400">Coin</span>
-          <select name="crypto_asset_id" required className="mt-1 h-11 w-full rounded-md border border-white/10 bg-black/25 px-3 text-sm text-white outline-none focus:border-cyan-300/60">
+          <select name="crypto_asset_id" required defaultValue={preselectedAssetId ?? ""} className="mt-1 h-11 w-full rounded-md border border-white/10 bg-black/25 px-3 text-sm text-white outline-none focus:border-cyan-300/60">
             <option value="">Seç</option>
             {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}
           </select>

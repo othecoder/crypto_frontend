@@ -1,4 +1,4 @@
-import { ExternalLink, ListChecks } from "lucide-react";
+import { ArrowLeft, Bookmark, ExternalLink, ListChecks } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FlagList } from "../../components/FlagList";
@@ -29,13 +29,21 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
     <Shell>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <Link href="/" className="text-sm text-cyan-200 hover:text-cyan-100">Radar</Link>
+          <Link href="/" className="inline-flex items-center gap-1 text-sm text-cyan-200 hover:text-cyan-100">
+            <ArrowLeft size={14} /> Radar
+          </Link>
           <h1 className="mt-2 text-3xl font-semibold text-white">{asset.name} <span className="text-slate-400">{asset.symbol}</span></h1>
           <p className="mt-2 text-sm text-slate-400">{asset.categories.join(", ") || asset.category || "Kategori yok"} · {asset.chain || "Chain bilinmiyor"}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <RiskBadge value={asset.risk_level} />
           <RiskBadge value={asset.action_label} />
+          <Link
+            href={`/watchlist?asset=${asset.id}`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-cyan-300/30 bg-cyan-300/10 px-3 py-1.5 text-sm font-medium text-cyan-200 hover:bg-cyan-300/20 transition-colors"
+          >
+            <Bookmark size={14} /> İzle'ye Ekle
+          </Link>
         </div>
       </div>
 
