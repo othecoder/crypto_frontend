@@ -33,6 +33,25 @@ export type AssetDetail = AssetListItem & {
   explanation: Record<string, string>;
   dex_pair: Record<string, string | number | null> | null;
   protocol: Record<string, string | number | null> | null;
+  onchain_risk: {
+    source: string | null;
+    mint_authority_revoked: boolean | null;
+    freeze_authority_revoked: boolean | null;
+    lp_status: string | null;
+    top10_holder_percent: string | null;
+    sniper_holder_percent: string | null;
+    bundler_holder_percent: string | null;
+    insider_holder_percent: string | null;
+    dev_holder_percent: string | null;
+    smart_trader_holder_percent: string | null;
+    smart_money_win_rate: string | null;
+    dev_sold_percent: string | null;
+    buy_depth_2pct_usd: string | null;
+    sell_depth_2pct_usd: string | null;
+    annual_emission_percent: string | null;
+    risk_flags: string[];
+    snapshot_at: string | null;
+  } | null;
   manual_checks: string[];
 };
 

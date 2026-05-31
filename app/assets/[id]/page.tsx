@@ -80,6 +80,42 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
         </section>
       </div>
 
+      <section className="mt-6 rounded-lg border border-white/10 bg-white/[0.04] p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-white">On-chain risk radarı</h2>
+            <p className="mt-1 text-sm text-slate-500">Mint/freeze authority, holder kümeleri, sniper/dev oranları ve %2 derinlik sinyalleri.</p>
+          </div>
+          <span className="text-xs text-slate-500">Snapshot: {dateTime(asset.onchain_risk?.snapshot_at)}</span>
+        </div>
+        {asset.onchain_risk ? (
+          <>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <RiskMetric label="Mint Authority" value={asset.onchain_risk.mint_authority_revoked === null ? "-" : asset.onchain_risk.mint_authority_revoked ? "Revoked" : "Açık"} ok={asset.onchain_risk.mint_authority_revoked} />
+              <RiskMetric label="Freeze Authority" value={asset.onchain_risk.freeze_authority_revoked === null ? "-" : asset.onchain_risk.freeze_authority_revoked ? "Revoked" : "Açık"} ok={asset.onchain_risk.freeze_authority_revoked} />
+              <RiskMetric label="LP Durumu" value={asset.onchain_risk.lp_status || "-"} />
+              <RiskMetric label="Top 10 Holder" value={percentValue(asset.onchain_risk.top10_holder_percent)} />
+              <RiskMetric label="Sniper Oranı" value={percentValue(asset.onchain_risk.sniper_holder_percent)} />
+              <RiskMetric label="Cüzdan Kümesi" value={percentValue(asset.onchain_risk.bundler_holder_percent)} />
+              <RiskMetric label="Dev Holder" value={percentValue(asset.onchain_risk.dev_holder_percent)} />
+              <RiskMetric label="Dev Satışı" value={percentValue(asset.onchain_risk.dev_sold_percent)} />
+              <RiskMetric label="Smart Trader" value={percentValue(asset.onchain_risk.smart_trader_holder_percent)} />
+              <RiskMetric label="Smart Win Rate" value={percentValue(asset.onchain_risk.smart_money_win_rate)} />
+              <RiskMetric label="+2% Depth" value={money(asset.onchain_risk.buy_depth_2pct_usd)} />
+              <RiskMetric label="-2% Depth" value={money(asset.onchain_risk.sell_depth_2pct_usd)} />
+              <RiskMetric label="Yıllık Emisyon" value={percentValue(asset.onchain_risk.annual_emission_percent)} />
+            </div>
+            <div className="mt-4">
+              <FlagList flags={asset.onchain_risk.risk_flags} limit={12} />
+            </div>
+          </>
+        ) : (
+          <p className="mt-4 rounded-md border border-amber-300/20 bg-amber-300/5 p-3 text-sm text-amber-100">
+            On-chain risk verisi yok. Backend tarafında Birdeye ve Helius API anahtarları girildikten sonra `php artisan crypto:sync-onchain-risk` çalıştır.
+          </p>
+        )}
+      </section>
+
       <div className="mt-6 grid gap-4 xl:grid-cols-3">
         <InfoPanel title="Market metrikleri" rows={[
           ["Price", money(asset.price)],
@@ -115,6 +151,17 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
         ]} />
       </div>
     </Shell>
+  );
+}
+
+function RiskMetric({ label, value, ok }: { label: string; value: string; ok?: boolean | null }) {
+  const color = ok === undefined || ok === null ? "border-white/10 bg-black/20 text-slate-100" : ok ? "border-emerald-300/20 bg-emerald-300/5 text-emerald-100" : "border-red-300/20 bg-red-300/5 text-red-100";
+
+  return (
+    <div className={`rounded-md border p-3 ${color}`}>
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 break-words text-sm font-semibold">{value}</p>
+    </div>
   );
 }
 
