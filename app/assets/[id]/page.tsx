@@ -1,4 +1,4 @@
-import { ArrowLeft, Bookmark, ExternalLink, ListChecks } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Bookmark, CheckCircle2, ExternalLink, HelpCircle, ListChecks } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FlagList } from "../../components/FlagList";
@@ -54,6 +54,27 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
         <MetricCard label="Liquidity" value={money(asset.liquidity_usd)} />
         <MetricCard label="TVL" value={money(asset.tvl)} />
       </div>
+
+      <section className={`mt-6 rounded-lg border p-5 ${decisionTone(asset.risk_flags).card}`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className={`inline-flex items-center gap-2 text-sm font-semibold ${decisionTone(asset.risk_flags).text}`}>
+              <AlertTriangle size={16} /> Karar özeti
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-white">{decisionTitle(asset)}</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">{decisionSummary(asset)}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <RiskBadge value={asset.risk_level} />
+            <RiskBadge value={asset.action_label} />
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <SignalBox title="Kritik uyarılar" icon={<AlertTriangle size={15} />} flags={criticalFlags(asset.risk_flags)} tone="bad" empty="Kritik uyarı yok" />
+          <SignalBox title="Olumlu sinyaller" icon={<CheckCircle2 size={15} />} flags={positiveSignals(asset)} tone="good" empty="Güçlü olumlu sinyal yok" />
+          <SignalBox title="Eksik / kapalı veri" icon={<HelpCircle size={15} />} flags={missingSignals(asset)} tone="missing" empty="Eksik veri yok" />
+        </div>
+      </section>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <section className="rounded-lg border border-white/10 bg-white/[0.04] p-5">
@@ -152,6 +173,90 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
       </div>
     </Shell>
   );
+}
+
+function SignalBox({ title, icon, flags, tone, empty }: { title: string; icon: ReactNode; flags: string[]; tone: "bad" | "good" | "missing"; empty: string }) {
+  const colors = {
+    bad: "border-red-300/20 bg-red-300/5 text-red-100",
+    good: "border-emerald-300/20 bg-emerald-300/5 text-emerald-100",
+    missing: "border-amber-300/20 bg-amber-300/5 text-amber-100",
+  };
+
+  return (
+    <div className={`rounded-md border p-4 ${colors[tone]}`}>
+      <h3 className="flex items-center gap-2 text-sm font-semibold">{icon}{title}</h3>
+      <div className="mt-3 grid gap-2">
+        {(flags.length ? flags : [empty]).map((flag) => (
+          <div key={flag} className="rounded border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-100">{flag}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function decisionTone(flags: string[]) {
+  return criticalFlags(flags).length > 0
+    ? { card: "border-red-300/25 bg-red-300/5", text: "text-red-100" }
+    : { card: "border-emerald-300/20 bg-emerald-300/5", text: "text-emerald-100" };
+}
+
+function decisionTitle(asset: NonNullable<Awaited<ReturnType<typeof getAsset>>["data"]>) {
+  if (criticalFlags(asset.risk_flags).length > 0) return "İlk bakışta alınabilir değil: önce kritik tutarsızlık çözülmeli.";
+  if (asset.action_label === "Güçlü Aday") return "Güçlü aday, ama eksik veri varsa küçük pozisyon/izleme mantıklı.";
+  if (asset.action_label === "İzle") return "İzlenebilir, henüz net alım sinyali değil.";
+  return "Risk yüksek: işlem öncesi manuel doğrulama gerekli.";
+}
+
+function decisionSummary(asset: NonNullable<Awaited<ReturnType<typeof getAsset>>["data"]>) {
+  const critical = criticalFlags(asset.risk_flags);
+  if (critical.includes("DEX likiditesi FDV/MCAP ile tutarsız")) {
+    return "DEX likiditesi FDV/market cap ile mantıksız görünüyor. Bu genelde yanlış pair seçimi, API verisi şişmesi veya likidite datası anormalliği demek; score iyi görünse bile bu coin şu an güvenilir karar üretmiyor.";
+  }
+
+  if (critical.length > 0) {
+    return `Kritik risk var: ${critical[0]}. Bu çözülmeden skor tek başına olumlu kabul edilmemeli.`;
+  }
+
+  return "Kritik kırmızı bayrak görünmüyor. Yine de holder/sniper/LP verileri boşsa bu alanlar doğrulanmadan karar eksik kalır.";
+}
+
+function criticalFlags(flags: string[]) {
+  const critical = [
+    "DEX likiditesi FDV/MCAP ile tutarsız",
+    "Mint authority açık",
+    "Freeze authority açık",
+    "LP durumu güvenli değil",
+    "Sniper holder oranı yüksek",
+    "Bundler/cüzdan kümesi oranı yüksek",
+    "Dev satışı izleniyor",
+  ];
+
+  return flags.filter((flag) => critical.includes(flag));
+}
+
+function positiveSignals(asset: NonNullable<Awaited<ReturnType<typeof getAsset>>["data"]>) {
+  const signals = [];
+
+  if (asset.onchain_risk?.mint_authority_revoked) signals.push("Mint authority revoked");
+  if (asset.onchain_risk?.freeze_authority_revoked) signals.push("Freeze authority revoked");
+  if (Number(asset.score_breakdown?.liquidity_score ?? 0) >= 16) signals.push("Likidite skoru güçlü");
+  if (Number(asset.score_breakdown?.volume_score ?? 0) >= 16) signals.push("Hacim/MCAP skoru güçlü");
+  if (Number(asset.score_breakdown?.fdv_score ?? 0) >= 16) signals.push("FDV/MCAP sağlıklı görünüyor");
+  if (Number(asset.score_breakdown?.fundamental_score ?? 0) >= 16) signals.push("TVL/fundamental skoru güçlü");
+
+  return signals;
+}
+
+function missingSignals(asset: NonNullable<Awaited<ReturnType<typeof getAsset>>["data"]>) {
+  const signals = [];
+
+  if (!asset.onchain_risk?.lp_status) signals.push("LP burned/locked durumu yok");
+  if (!asset.onchain_risk?.top10_holder_percent) signals.push("Top holder dağılımı yok");
+  if (!asset.onchain_risk?.sniper_holder_percent) signals.push("Sniper oranı yok");
+  if (!asset.onchain_risk?.sell_depth_2pct_usd) signals.push("-2% gerçek derinlik kapalı/yok");
+  if (!asset.onchain_risk?.annual_emission_percent) signals.push("Unlock/emisyon verisi yok");
+
+  return signals;
 }
 
 function RiskMetric({ label, value, ok }: { label: string; value: string; ok?: boolean | null }) {
