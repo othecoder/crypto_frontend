@@ -6,7 +6,7 @@ import { MetricCard } from "../../components/MetricCard";
 import { RiskBadge } from "../../components/RiskBadge";
 import { Shell } from "../../components/Shell";
 import { getAsset } from "../../lib/api";
-import { compactNumber, dateTime, money, percentRatio, percentValue } from "../../lib/format";
+import { compactNumber, dateTime, fullNumber, money, percentRatio, percentValue } from "../../lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,7 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
             href={`/watchlist?asset=${asset.id}`}
             className="inline-flex items-center gap-1.5 rounded-md border border-cyan-300/30 bg-cyan-300/10 px-3 py-1.5 text-sm font-medium text-cyan-200 hover:bg-cyan-300/20 transition-colors"
           >
-            <Bookmark size={14} /> İzle'ye Ekle
+            <Bookmark size={14} /> İzle&apos;ye Ekle
           </Link>
         </div>
       </div>
@@ -60,10 +60,7 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
           <h2 className="text-lg font-semibold text-white">Bu coin neden bu skoru aldı?</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {Object.entries(asset.explanation).map(([key, value]) => (
-              <div key={key} className="rounded-md border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase text-slate-500">{key}</p>
-                <p className="mt-2 text-sm text-slate-200">{value}</p>
-              </div>
+              <ScoreReason key={key} label={key} score={scoreFor(asset.score_breakdown, key)} text={value} />
             ))}
           </div>
           <div className="mt-5">
@@ -83,13 +80,18 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
         </section>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid gap-4 xl:grid-cols-3">
         <InfoPanel title="Market metrikleri" rows={[
           ["Price", money(asset.price)],
           ["FDV", money(asset.fdv)],
           ["24h Volume", money(asset.volume_24h)],
           ["Volume/MCAP", percentRatio(asset.volume_mcap_ratio)],
+          ["1h Change", percentValue(asset.price_change_1h)],
+          ["24h Change", percentValue(asset.price_change_24h)],
           ["7D Trend", percentValue(asset.trend_7d)],
+          ["30D Change", percentValue(asset.price_change_30d)],
+          ["Circulating Supply", fullNumber(asset.circulating_supply)],
+          ["Total Supply", fullNumber(asset.total_supply)],
           ["Son snapshot", dateTime(asset.updated_at)],
         ]} />
         <InfoPanel title="DEX pair bilgileri" rows={[
@@ -98,11 +100,91 @@ export default async function AssetDetailPage({ params }: { params: Promise<{ id
           ["Pair", String(asset.dex_pair?.pair_address || "-")],
           ["24h Txns", String(asset.dex_pair?.txns_24h || "-")],
           ["Buys/Sells", `${asset.dex_pair?.buys_24h || "-"} / ${asset.dex_pair?.sells_24h || "-"}`],
+          ["DEX 24h Change", percentValue(asset.dex_pair?.price_change_24h as string | number | null | undefined)],
           ["Pair age", dateTime(String(asset.dex_pair?.pair_created_at || ""))],
         ]} footer={asset.dex_pair?.url ? <a href={String(asset.dex_pair.url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-cyan-200"><ExternalLink size={14} /> DEX kaynağı</a> : null} />
+        <InfoPanel title="Protokol verileri" rows={[
+          ["DefiLlama", String(asset.protocol?.defillama_slug || "-")],
+          ["TVL", money(asset.tvl)],
+          ["TVL 7D", percentValue(asset.protocol?.tvl_change_7d as string | number | null | undefined)],
+          ["TVL 30D", percentValue(asset.protocol?.tvl_change_30d as string | number | null | undefined)],
+          ["Fees 24h", money(asset.protocol?.fees_24h as string | number | null | undefined)],
+          ["Revenue 24h", money(asset.protocol?.revenue_24h as string | number | null | undefined)],
+          ["Protocol Volume 24h", money(asset.protocol?.volume_24h as string | number | null | undefined)],
+          ["Son protokol snapshot", dateTime(String(asset.protocol?.snapshot_at || ""))],
+        ]} />
       </div>
     </Shell>
   );
+}
+
+function ScoreReason({ label, score, text }: { label: string; score: number | null; text: string }) {
+  const color = scoreColor(score);
+
+  return (
+    <div className={`flex gap-4 rounded-md border p-4 ${color.card}`}>
+      <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border text-lg font-bold ${color.circle}`}>
+        {score ?? "-"}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
+        <p className="mt-2 text-sm leading-6 text-slate-100">{text}</p>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div className={`h-full rounded-full ${color.bar}`} style={{ width: `${scoreWidth(score)}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function scoreFor(breakdown: Record<string, number> | null, key: string) {
+  return breakdown?.[`${key}_score`] ?? null;
+}
+
+function scoreWidth(score: number | null) {
+  if (score === null) return 0;
+
+  return Math.min(100, Math.max(0, (score / 20) * 100));
+}
+
+function scoreColor(score: number | null) {
+  if (score === null) {
+    return {
+      card: "border-slate-500/20 bg-slate-500/5",
+      circle: "border-slate-500/30 bg-slate-500/10 text-slate-300",
+      bar: "bg-slate-500",
+    };
+  }
+
+  if (score >= 16) {
+    return {
+      card: "border-emerald-400/20 bg-emerald-400/5",
+      circle: "border-emerald-300/50 bg-emerald-400/15 text-emerald-100",
+      bar: "bg-emerald-400",
+    };
+  }
+
+  if (score >= 12) {
+    return {
+      card: "border-amber-300/20 bg-amber-300/5",
+      circle: "border-amber-300/50 bg-amber-300/15 text-amber-100",
+      bar: "bg-amber-300",
+    };
+  }
+
+  if (score >= 8) {
+    return {
+      card: "border-orange-400/20 bg-orange-400/5",
+      circle: "border-orange-300/50 bg-orange-400/15 text-orange-100",
+      bar: "bg-orange-400",
+    };
+  }
+
+  return {
+    card: "border-red-400/20 bg-red-400/5",
+    circle: "border-red-300/50 bg-red-400/15 text-red-100",
+    bar: "bg-red-400",
+  };
 }
 
 function InfoPanel({ title, rows, footer }: { title: string; rows: [string, string][]; footer?: ReactNode }) {

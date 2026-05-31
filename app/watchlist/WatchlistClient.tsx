@@ -4,7 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiBaseUrl } from "../lib/api";
-import { money } from "../lib/format";
+import { dateTime, money, percentChange } from "../lib/format";
 import type { AssetListItem, WatchlistItem } from "../lib/types";
 import { FlagList } from "../components/FlagList";
 import { RiskBadge } from "../components/RiskBadge";
@@ -16,6 +16,7 @@ export function WatchlistClient() {
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
   const preselectedAssetId = searchParams.get("asset");
+  const [selectedAssetId, setSelectedAssetId] = useState(preselectedAssetId ?? "");
 
   useEffect(() => {
     void load();
@@ -45,12 +46,17 @@ export function WatchlistClient() {
     const form = new FormData(event.currentTarget);
     setError(null);
 
+    if (!selectedAssetId) {
+      setError("Önce watchlist'e eklenecek coini seç.");
+      return;
+    }
+
     try {
       const response = await fetch(`${apiBaseUrl()}/radar/watchlist`, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({
-          crypto_asset_id: Number(form.get("crypto_asset_id")),
+          crypto_asset_id: Number(selectedAssetId),
           note: form.get("note") || null,
           priority: form.get("priority") ? Number(form.get("priority")) : null,
         }),
@@ -58,6 +64,7 @@ export function WatchlistClient() {
 
       if (!response.ok) throw new Error("watchlist");
       event.currentTarget.reset();
+      setSelectedAssetId("");
       await load();
     } catch {
       setError("Watchlist kaydı oluşturulamadı.");
@@ -82,7 +89,13 @@ export function WatchlistClient() {
         <p className="mt-2 text-sm text-slate-400">İlk MVP global takip listesi kullanır; auth yoktur.</p>
         <label className="mt-5 block">
           <span className="text-xs text-slate-400">Coin</span>
-          <select name="crypto_asset_id" required defaultValue={preselectedAssetId ?? ""} className="mt-1 h-11 w-full rounded-md border border-white/10 bg-black/25 px-3 text-sm text-white outline-none focus:border-cyan-300/60">
+          <select
+            name="crypto_asset_id"
+            required
+            value={selectedAssetId}
+            onChange={(event) => setSelectedAssetId(event.target.value)}
+            className="mt-1 h-11 w-full rounded-md border border-white/10 bg-black/25 px-3 text-sm text-white outline-none focus:border-cyan-300/60"
+          >
             <option value="">Seç</option>
             {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}
           </select>
@@ -114,7 +127,7 @@ export function WatchlistClient() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-lg font-semibold text-white">{item.asset.symbol} <span className="text-slate-400">{item.asset.name}</span></p>
-                  <p className="mt-1 text-sm text-slate-400">MCAP {money(item.asset.market_cap)} · Liquidity {money(item.asset.liquidity_usd)}</p>
+                  <p className="mt-1 text-sm text-slate-400">Eklendi: {dateTime(item.tracked_at)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <RiskBadge value={item.asset.risk_level} />
@@ -124,6 +137,32 @@ export function WatchlistClient() {
                   </button>
                 </div>
               </div>
+              <div className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+                <WatchMetric
+                  label="Fiyat"
+                  entry={money(item.entry_price)}
+                  current={money(item.asset.price)}
+                  change={percentChange(item.asset.price, item.entry_price)}
+                />
+                <WatchMetric
+                  label="Market Cap"
+                  entry={money(item.entry_market_cap)}
+                  current={money(item.asset.market_cap)}
+                  change={percentChange(item.asset.market_cap, item.entry_market_cap)}
+                />
+                <WatchMetric
+                  label="Likidite"
+                  entry={money(item.entry_liquidity_usd)}
+                  current={money(item.asset.liquidity_usd)}
+                  change={percentChange(item.asset.liquidity_usd, item.entry_liquidity_usd)}
+                />
+                <WatchMetric
+                  label="Skor"
+                  entry={String(item.entry_score ?? "-")}
+                  current={String(item.asset.total_score ?? "-")}
+                  change={scoreChange(item.asset.total_score, item.entry_score)}
+                />
+              </div>
               {item.note ? <p className="mt-3 rounded-md border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-300">{item.note}</p> : null}
               <div className="mt-3"><FlagList flags={item.asset.risk_flags} /></div>
             </div>
@@ -132,4 +171,32 @@ export function WatchlistClient() {
       </section>
     </div>
   );
+}
+
+function WatchMetric({ label, entry, current, change }: { label: string; entry: string; current: string; change: string }) {
+  return (
+    <div className="rounded-md border border-white/10 bg-white/[0.03] p-3">
+      <p className="text-xs text-slate-500">{label}</p>
+      <div className="mt-2 grid gap-1">
+        <p className="text-slate-300">Alış gibi: <span className="font-medium text-slate-100">{entry}</span></p>
+        <p className="text-slate-300">Şimdi: <span className="font-medium text-slate-100">{current}</span></p>
+        <p className={`font-semibold ${changeColor(change)}`}>{change}</p>
+      </div>
+    </div>
+  );
+}
+
+function scoreChange(current: number | null, entry: number | null) {
+  if (current === null || entry === null) return "-";
+  const change = current - entry;
+  const prefix = change > 0 ? "+" : "";
+
+  return `${prefix}${change}`;
+}
+
+function changeColor(value: string) {
+  if (value.startsWith("+")) return "text-emerald-300";
+  if (value.startsWith("-")) return "text-red-300";
+
+  return "text-slate-400";
 }

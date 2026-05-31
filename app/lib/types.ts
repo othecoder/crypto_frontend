@@ -10,9 +10,14 @@ export type AssetListItem = {
   fdv_mcap_ratio: string | null;
   volume_24h: string | null;
   volume_mcap_ratio: string | null;
+  price_change_1h: string | null;
+  price_change_24h: string | null;
   liquidity_usd: string | null;
   tvl: string | null;
   trend_7d: string | null;
+  price_change_30d: string | null;
+  circulating_supply: string | null;
+  total_supply: string | null;
   total_score: number | null;
   risk_level: string | null;
   action_label: string | null;
@@ -61,5 +66,10 @@ export type WatchlistItem = {
   id: number;
   note: string | null;
   priority: number | null;
-  asset: Pick<AssetListItem, "id" | "symbol" | "name" | "image_url" | "total_score" | "risk_level" | "action_label" | "risk_flags" | "market_cap" | "liquidity_usd">;
+  entry_price: string | null;
+  entry_market_cap: string | null;
+  entry_liquidity_usd: string | null;
+  entry_score: number | null;
+  tracked_at: string | null;
+  asset: Pick<AssetListItem, "id" | "symbol" | "name" | "image_url" | "price" | "total_score" | "risk_level" | "action_label" | "risk_flags" | "market_cap" | "liquidity_usd">;
 };

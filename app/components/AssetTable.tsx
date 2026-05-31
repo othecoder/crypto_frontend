@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpDown } from "lucide-react";
+import { ArrowRight, ArrowUpDown, Bookmark } from "lucide-react";
 import Link from "next/link";
 import type { AssetListItem } from "../lib/types";
 import { compactNumber, money, percentRatio, percentValue } from "../lib/format";
@@ -20,7 +20,7 @@ export function AssetTable({ assets }: { assets: AssetListItem[] }) {
       {/* Desktop table */}
       <div className="hidden overflow-x-auto rounded-lg border border-white/10 bg-white/[0.04] lg:block">
         <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-          <thead className="sticky top-[73px] bg-[#111722] text-xs uppercase text-slate-400">
+          <thead className="bg-[#111722] text-xs uppercase text-slate-400">
             <tr>
               {headers.map(({ label, sortable }) => (
                 <th key={label} className="px-3 py-3 font-medium whitespace-nowrap">
@@ -62,12 +62,20 @@ export function AssetTable({ assets }: { assets: AssetListItem[] }) {
                 <td className="px-3 py-4"><RiskBadge value={asset.risk_level} /></td>
                 <td className="px-3 py-4"><RiskBadge value={asset.action_label} /></td>
                 <td className="px-3 py-4">
-                  <Link
-                    href={`/assets/${asset.id}`}
-                    className="inline-flex items-center gap-1 rounded-md border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:border-cyan-300/50 hover:text-cyan-200 transition-colors whitespace-nowrap"
-                  >
-                    Detay <ArrowRight size={12} />
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/watchlist?asset=${asset.id}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-cyan-300/30 bg-cyan-300/10 px-3 py-1.5 text-xs text-cyan-200 hover:bg-cyan-300/20 transition-colors whitespace-nowrap"
+                    >
+                      İzle <Bookmark size={12} />
+                    </Link>
+                    <Link
+                      href={`/assets/${asset.id}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:border-cyan-300/50 hover:text-cyan-200 transition-colors whitespace-nowrap"
+                    >
+                      Detay <ArrowRight size={12} />
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
